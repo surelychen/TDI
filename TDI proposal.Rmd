@@ -1,0 +1,427 @@
+---
+title: "TDI Proposal"
+author: "Shirley Chen"
+date: "8/1/2019"
+output:
+  rmdformats::material:
+    code_folding: show
+    df_print: kable
+    fig_height: 4
+    fig_width: 4
+    gallery: true
+    highlight: kate
+    self_contained: true
+    thumbnails: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Motivation: Please provide a general description and justification for your project.
+
+- I would like to help Airbnb hosts to have the ability to preduct occupancy, set the price, and maximize their revenue 
+
+- More and more people are renting out their house or rooms to generate second income.
+
+- I've worked on a group project using the SFO data from http://insideairbnb.com/get-the-data.html. We generated a prediction model but it is not optimized. 
+
+- I would like to continue on this route and analyze Ann Arbor, MI data, which is not available in the dataset. I would like to learn how to scrape data from Airbnb site. Perhaps combining geographic data for interactive search, and historical weather data, and events of University of Michigan and city of Ann Arbor to show if we can predict occupancy and set up a dynamic pricing.
+
+
+
+
+# Data Cleaning & Exploratory Data Analysis 
+We spent a lot of time cleaning up the data.  To tackle the list of descriptions in the amenities column, we ran a Python code to extract the list we assume might be relevant.  Then we joined the amenities and their features with their listing IDs.
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(moderndive)
+
+#sfo12_08_2019.csv is the dataset with the scraped amenities.
+sfo<- read.csv("sfo12_08_2019.csv")
+
+sfo$listing_url<- NULL
+sfo$house_rules<- NULL
+sfo$scrape_id<- NULL
+sfo$last_scraped<- NULL                                  
+sfo$name<- NULL                                
+sfo$summary<- NULL
+sfo$space<- NULL
+sfo$description <- NULL
+sfo$summary <- NULL
+sfo$experiences_offered<- NULL
+sfo$neighborhood_overview<- NULL
+sfo$notes<- NULL
+sfo$transit<- NULL
+sfo$access<- NULL
+sfo$interaction<- NULL
+sfo$thumbnail_url<- NULL
+sfo$medium_url<- NULL
+sfo$picture_url<- NULL
+sfo$xl_picture_url<- NULL
+sfo$host_url<- NULL
+sfo$host_name<- NULL
+sfo$host_about<- NULL
+sfo$host_has_profile_pic<- NULL
+sfo$host_location<- NULL
+sfo$host_acceptance_rate<- NULL
+sfo$host_thumbnail_url<- NULL
+sfo$host_identity_verified<- NULL
+sfo$host_picture_url<- NULL
+sfo$host_total_listings_count<- NULL
+sfo$street<- NULL
+sfo$neighbourhood<- NULL  #use the neighborhood cleansed since it's more accurate
+sfo$neighbourhood_group_cleansed<- NULL
+sfo$city<- NULL
+sfo$state<- NULL
+sfo$market<- NULL
+sfo$smart_location<- NULL
+sfo$country<- NULL
+sfo$country_code<- NULL
+sfo$square_feet<- NULL   #most of them are NA
+sfo$maximum_maximum_nights<- NULL
+sfo$minimum_minimum_nights<- NULL
+sfo$minimum_maximum_nights<- NULL
+sfo$maximum_minimum_nights<- NULL
+sfo$maximum_nights_avg_ntm<- NULL
+sfo$minimum_nights_avg_ntm<- NULL
+sfo$calendar_last_scraped<- NULL
+sfo$requires_license<- NULL #it is all true since it's legally required in sfo.
+sfo$license<- NULL
+sfo$jurisdiction_names<- NULL
+sfo$room_type<- as.factor(sfo$room_type)
+sfo$property_type<- as.factor(sfo$property_type)
+sfo$instant_bookable<- as.factor(sfo$instant_bookable)
+sfo$host_is_superhost<- as.factor(sfo$host_is_superhost)
+sfo$has_availability <- NULL # all true
+sfo$is_business_travel_ready <- NULL #all true
+colnames(sfo)[colSums(is.na(sfo)) > 0]
+
+#to handle all the NA's, we decided to use median to replace the data.
+
+sfo$host_listings_count <- ifelse(is.na(sfo$host_listings_count), round(median(sfo$host_listings_count, na.rm = TRUE)), sfo$host_listings_count)
+sfo$bathrooms <- ifelse(is.na(sfo$bathrooms), round(median(sfo$bathrooms, na.rm = TRUE)), sfo$bathrooms)
+sfo$bedrooms <- ifelse(is.na(sfo$bedrooms), round(median(sfo$bedrooms, na.rm = TRUE)), sfo$bedrooms)
+sfo$beds <- ifelse(is.na(sfo$beds), round(median(sfo$beds, na.rm = TRUE)), sfo$beds)
+sfo$review_scores_rating <- ifelse(is.na(sfo$review_scores_rating), round(median(sfo$review_scores_rating, na.rm = TRUE)), sfo$review_scores_rating)
+sfo$review_scores_accuracy <- ifelse(is.na(sfo$review_scores_accuracy), round(median(sfo$review_scores_accuracy, na.rm = TRUE)), sfo$review_scores_accuracy)
+sfo$review_scores_cleanliness <- ifelse(is.na(sfo$review_scores_cleanliness), round(median(sfo$review_scores_cleanliness, na.rm = TRUE)), sfo$review_scores_cleanliness)
+sfo$review_scores_checkin <- ifelse(is.na(sfo$review_scores_checkin), round(median(sfo$review_scores_checkin, na.rm = TRUE)), sfo$review_scores_checkin)
+sfo$review_scores_communication <- ifelse(is.na(sfo$review_scores_communication), round(median(sfo$review_scores_communication, na.rm = TRUE)), sfo$review_scores_communication)
+sfo$review_scores_location <- ifelse(is.na(sfo$review_scores_location), round(median(sfo$review_scores_location, na.rm = TRUE)), sfo$review_scores_location)
+sfo$review_scores_value <- ifelse(is.na(sfo$review_scores_value), round(median(sfo$review_scores_value, na.rm = TRUE)), sfo$review_scores_value)
+sfo$reviews_per_month <- ifelse(is.na(sfo$reviews_per_month), median(sfo$reviews_per_month, na.rm = TRUE), sfo$reviews_per_month)
+sfo$property_age <- ifelse(is.na(sfo$property_age), median(sfo$property_age, na.rm = TRUE), sfo$property_age)
+
+#covert the following columns as numeric values
+sfo$availability_30 <- as.numeric(sfo$availability_30)
+sfo$availability_60 <- as.numeric(sfo$availability_60)
+sfo$availability_90 <- as.numeric(sfo$availability_90)
+sfo$availability_365 <- as.numeric(sfo$availability_365)
+
+#Remove $ from prices, security deposit, and cleaning fee
+#Convert them into numbers.
+sfo$security_deposit <- as.numeric(gsub("\\$", "", sfo$security_deposit))
+sfo$security_deposit <- ifelse(is.na(sfo$security_deposit), median(sfo$security_deposit, na.rm = TRUE), sfo$security_deposit)
+sfo$price <- as.numeric(gsub("\\$", "", sfo$price))
+sfo$cleaning_fee <- as.numeric(gsub("\\$", "", sfo$cleaning_fee))
+sfo$cleaning_fee <- ifelse(is.na(sfo$cleaning_fee), median(sfo$cleaning_fee, na.rm = TRUE), sfo$cleaning_fee)
+```
+# Create Occupancy
+The original dataset doesn't have occupancy, so we came up a way to calculate it.  We use the review number to do a bunch of calculation.
+```{r}
+sfo$property_age<-(difftime(strptime(sfo$last_review, format = "%m/%d/%Y"),
++ + strptime(sfo$first_review, format = "%m/%d/%Y"),units="days"))/365
+sfo$property_age <- as.numeric(sfo$property_age)
+
+#This approach created some of the very small numbers, so we replace them with 1.
+sfo$property_age<- ifelse(sfo$property_age < 1, 1, sfo$property_age)
+
+sfo$property_age <- ifelse(is.na(sfo$property_age), median(sfo$property_age, na.rm = TRUE), sfo$property_age)
+
+sfo$number_of_reviews <- ifelse(is.na(sfo$number_of_reviews), median(sfo$number_of_reviews, na.rm = TRUE), sfo$number_of_reviews)
+
+summary(sfo$property_age)
+
+#Occupancy calculations
+sfo$occupancy_base <- (sfo$number_of_reviews)/sfo$property_age
+
+summary(sfo$occupancy_base)
+summary(sfo$number_of_reviews_ltm)
+#our average number of reviews/ month is similar to the number of reviews in the last 12 months
+
+# We tried different way to generate different occupancy for models
+# InsideAirbnb tells us 50% of people write reviews, and each stay is 5.5 nights.
+sfo$occupancy_2 <- (sfo$number_of_reviews)*2/sfo$property_age
+
+sfo$occupancy_5.5 <- (sfo$number_of_reviews)*5.5/sfo$property_age
+
+sfo$occupancy_11 <- (sfo$number_of_reviews)*5.5*2/sfo$property_age
+```
+
+Working with cancellation policy & more wrangling to change factors into numbers and make price calculations possible.
+```{r}
+sum(sfo$cancellation_policy == "moderate")
+sfo$cancellation_moderate <- ifelse(sfo$cancellation_policy == "moderate", 1, 0)
+sum(sfo$cancellation_policy == "strict_14_with_grace_period")
+sfo$cancellation_policy_strict14 <- ifelse(sfo$cancellation_policy == "strict_14_with_grace_period", 1, 0)
+
+#summary(sfo$host_is_superhost)
+
+#sfo$host_is_superhost <- as.numeric(ifelse(sfo$host_is_superhost == "t", 1, 0))
+
+#summary(sfo$host_listings_count)
+sfo$host_listings_count <- ifelse(is.na(sfo$host_listings_count), median(sfo$host_is_superhost, na.rm = TRUE), sfo$host_listings_count)
+
+#summary(sfo$is_location_exact)
+#sfo$is_location_exact <- as.numeric(ifelse(sfo$is_location_exact == "t", 1, 0))
+
+#table(sfo$property_type)
+
+sfo$aparthotel <- as.numeric(ifelse(sfo$property_type == "Aparthotel", 1, 0))
+sfo$apartment <- as.numeric(ifelse(sfo$property_type == "Apartment", 1, 0))
+sfo$bed_breakfast <- as.numeric(ifelse(sfo$property_type == "Bed and breakfast", 1, 0))
+sfo$boutique_hotel <- as.numeric(ifelse(sfo$property_type == "Boutique hotel", 1, 0))
+sfo$bungalow <- as.numeric(ifelse(sfo$property_type == "Bungalow", 1, 0))
+sfo$cabin <- as.numeric(ifelse(sfo$property_type == "Cabin", 1, 0))
+sfo$camper_rv <- as.numeric(ifelse(sfo$property_type == "Camper/RV", 1, 0))
+sfo$castle <- as.numeric(ifelse(sfo$property_type == "Castle", 1, 0))
+sfo$condominium <- as.numeric(ifelse(sfo$property_type == "Condominium", 1, 0))
+sfo$cottage <- as.numeric(ifelse(sfo$property_type == "Cottage", 1, 0))
+sfo$dome_house <- as.numeric(ifelse(sfo$property_type == "Dome house", 1, 0))
+sfo$earth_house  <- as.numeric(ifelse(sfo$property_type == "Earth house ", 1, 0))
+sfo$guest_suite <- as.numeric(ifelse(sfo$property_type == "Guest suite", 1, 0))
+sfo$guesthouse <- as.numeric(ifelse(sfo$property_type == "Guesthouse", 1, 0))
+sfo$hostel <- as.numeric(ifelse(sfo$property_type == "Hostel", 1, 0))
+sfo$hotel <- as.numeric(ifelse(sfo$property_type == "Hotel", 1, 0))
+sfo$house <- as.numeric(ifelse(sfo$property_type == "House", 1, 0))
+sfo$hut <- as.numeric(ifelse(sfo$property_type == "Hut", 1, 0))
+sfo$in_law <- as.numeric(ifelse(sfo$property_type == "In-law", 1, 0))
+sfo$loft <- as.numeric(ifelse(sfo$property_type == "Loft", 1, 0))
+sfo$other <- as.numeric(ifelse(sfo$property_type == "Other", 1, 0))
+sfo$resort <- as.numeric(ifelse(sfo$property_type == "Resort", 1, 0))
+sfo$serviced_apartment <- as.numeric(ifelse(sfo$property_type == "Serviced apartment", 1, 0))
+sfo$tiny_house <- as.numeric(ifelse(sfo$property_type == "Tiny house", 1, 0))
+sfo$townhouse <- as.numeric(ifelse(sfo$property_type == "Townhouse", 1, 0))
+sfo$villa <- as.numeric(ifelse(sfo$property_type == "Villa", 1, 0))
+
+# summary(sfo$bathrooms)
+# summary(sfo$price)
+# summary(sfo$security_deposit)
+# summary(sfo$cleaning_fee)
+# summary(sfo$guests_included)
+# summary(sfo$number_of_reviews)
+# summary(sfo$review_scores_checkin)
+# summary(sfo$review_scores_location)
+# summary(sfo$instant_bookable)
+#sfo$instant_bookable <- as.numeric(ifelse(sfo$instant_bookable == "t", 1, 0))
+# summary(sfo$require_guest_phone_verification)
+#sfo$require_guest_phone_verification <- as.numeric(ifelse(sfo$require_guest_phone_verification == "t", 1, 0))
+# summary(sfo$calculated_host_listings_count)
+# summary(sfo$calculated_host_listings_count_entire_homes)
+# summary(sfo$calculated_host_listings_count_shared_rooms)
+# summary(sfo$reviews_per_month)
+```
+Randomizing data and separating into test and train
+```{r, cache=TRUE}
+set.seed(987)
+sfo_rand <- sfo[order(runif(nrow(sfo))), ]
+sfo_train <- sfo_rand[1:6080, ]
+sfo_test  <- sfo_rand[6081:8111, ]
+```
+# Occupancy model
+
+Our best model is using the occupancy_base and ignore the review rate and duration of each stay.  The following codes show you what we ended up removing from our model to increase the R2.
+```{r, cache=TRUE}
+#comparing the spread of occupancy 
+summary(sfo$occupancy_base)
+summary(sfo_train$occupancy_base)
+summary(sfo_test$occupancy_base)
+```
+
+
+```{r, cache=TRUE}
+full.modelbase <- lm(occupancy_base ~ host_is_superhost                           
+                + host_listings_count   
+                #+ neighbourhood_cleansed
+                + is_location_exact     
+               # + property_type        
+                #+ room_type            
+                #+ accommodates          
+                + bathrooms             
+                #+ bedrooms             
+                #+ beds                  
+                #+ bed_type              
+                + price                 
+                + security_deposit                      
+                + cleaning_fee          
+                + guests_included       
+                #+ extra_people                          
+                #+ minimum_nights                        
+               # + maximum_nights                       
+                #+ availability_30       
+                #+ availability_60                       
+                #+ availability_90                       
+                #+ availability_365
+                + number_of_reviews     
+                #+ review_scores_rating  
+                #+ review_scores_accuracy
+                #+ review_scores_cleanliness               
+                + review_scores_checkin 
+                #+ review_scores_communication             
+                + review_scores_location
+                #+ review_scores_value   
+                + instant_bookable  
+                #+ cancellation_policy
+                + require_guest_profile_picture           
+                + require_guest_phone_verification        
+                + calculated_host_listings_count          
+                + calculated_host_listings_count_entire_homes 
+                + calculated_host_listings_count_private_rooms
+                + calculated_host_listings_count_shared_rooms
+                + reviews_per_month
+                #+ air_conditioning      
+                + heating
+                #+ kitchen               
+                #+ oven                  
+                #+ stove                 
+                #+ refrigerator          
+                #+ washer                
+                #+ dryer                 
+                + cable                 
+                + internet            
+                #+ wifi                  
+                #+ gym                   
+                #+ elevator              
+                + parking               
+                #+ waterfront            
+                #+ bathtub 
+                #+ coffee_maker          
+                #+ cooking_basics 
+                + property_age
+                #+ price*cleaning_fee
+                #+ price*security_deposit
+                + cancellation_moderate
+                + cancellation_policy_strict14
+                # + aparthotel
+                # + apartment
+                # + bed_breakfast
+                # + boutique_hotel
+                # + bungalow
+                # + cabin
+                # + camper_rv
+                # + castle
+                #+ condominium 
+                # + cottage
+                # + dome_house
+                # + earth_house
+                # + guest_suite
+                # + guesthouse
+                # + hostel
+                # + hotel
+                # + house
+                # + hut
+                # + in_law
+                # + loft
+                # + other
+                # + resort
+                # + serviced_apartment
+                # + tiny_house
+                # + townhouse
+                #+ villa 
+               ,data = sfo_train)
+summary(full.modelbase)
+# R2 is 85%
+```
+
+# Established base model
+Predictions with base model
+```{r, cache=TRUE}
+#Occupancy predictions as a column
+sfo_test$occupancy_predict_base <- predict(full.modelbase, newdata = sfo_test)
+
+#Comparing first prediction value to first occupancy value
+head(sfo_train$occupancy_base)
+head(sfo_test$occupancy_predict_base )
+sfo_test$occupancy_predict_base <- ifelse(sfo_test$occupancy_predict_base < 0, 0, sfo_test$occupancy_predict_base)
+summary(sfo_test$occupancy_predict_base)
+
+summary(sfo_train$occupancy_base)
+summary(sfo_test$occupancy_base)
+
+
+#Generate optimal price for first property
+sfo_test$price_predict_base <- (-sfo_test$occupancy_predict_base - (coef(summary(full.modelbase))["price","Estimate"]*sfo_test$price))/(2*coef(summary(full.modelbase))["price","Estimate"])
+head(sfo_test$price_predict_base)
+head(sfo_test$price)
+
+#New occupancy based on new price
+sfo_test$occupancy_predict_base <- sfo_test$occupancy_predict_base - (coef(summary(full.modelbase))["price","Estimate"]*sfo_test$price) + (coef(summary(full.modelbase))["price","Estimate"]*sfo_test$price_predict_base)
+summary(sfo_test$occupancy_predict_base)
+```
+# Creating Preidiction
+Now we have our model, occupancy and price.  Create column for Revenue = occupancy*price.  We have a bunch of outliners and negative values. We removed the outliers since they are dragging the data to the right.  We get rid of the negative values, too.
+```{r, cache=TRUE}
+#Create column for Revenue = occupancy*price
+sfo_test$revenue_predict_base <- sfo_test$occupancy_predict_base * sfo_test$price_predict_base
+max(sfo_test$revenue_predict_base) #unlikely to have a place for $7M revenue
+hist(sfo_test$revenue_predict_base)
+
+# decide to cut it off for anything larger than 90k
+high_index = which(sfo_test$revenue_predict_base>90000)
+
+sfo_test = sfo_test[-high_index,]
+hist(sfo_test$revenue_predict_base)
+summary(sfo_test$revenue_predict_base)
+
+sfo_test$revenue_base <- sfo_test$occupancy_base*sfo_test$price
+
+sfo_test$delta_rev <- sfo_test$revenue_predict_base - sfo_test$revenue_base
+
+```
+
+
+# Why is the model useful?
+
+Looking at the distribution, we saw a bunch of extreme numbers. If we assume:
+
+1. the model has some prediction power
+2. if we rule out the outliers
+3. We look at the median value to see how much money we can help hosts to make more money.  We are getting the median value of dela of $5619.
+
+```{r, cache=TRUE}
+sfo_test_output <- sfo_test%>% 
+ dplyr::select(id, host_id,occupancy_base, occupancy_predict_base, price, price_predict_base, revenue_base, revenue_predict_base,delta_rev)
+
+
+median_gain<- median(sfo_test$delta_rev)
+median_gain
+
+# get rid of negative prediction outcomes
+negative_index <- which(sfo_test_output$occupancy_predict_base<0 | sfo_test_output$price_predict_base<0)
+
+#no_occupancy <- which(sfo_test_output$occupancy_base== 0|sfo_test_output$revenue_base== 0)
+
+#which(sfo_test_output$price_predict_base<0)
+#sfo_test_output = sfo_test_output[-negative_index]
+# This above line impacted two columns. Why?
+
+#preparing for final output
+#sfo_test_output$delta_rev<- as.numeric(sfo_test_output$delta_rev)
+sfo_test_output$occupancy_base<- round(sfo_test_output$occupancy_base, digits = 2)
+sfo_test_output$occupancy_predict_base<- round(sfo_test_output$occupancy_predict_base, digits = 2)
+sfo_test_output$price_predict_base<- round(sfo_test_output$price_predict_base, digits = 2)
+
+sfo_test_output$revenue_base<- round(sfo_test_output$revenue_base, digits = 2)
+sfo_test_output$revenue_predict_base<- round(sfo_test_output$revenue_predict_base, digits = 2)
+sfo_test_output$delta_rev<- round(sfo_test_output$delta_rev, digits = 2)
+
+sfo_test_output = sfo_test_output[-negative_index]
+hist(sfo_test_output$revenue_predict_base)
+summary(sfo_test_output)
+#write.csv(sfo_test, "sfo_test_complete.csv", row.names=FALSE)
+write.csv(sfo_test_output,"sfo_test_12_19.csv", row.names=FALSE )
+```
+
